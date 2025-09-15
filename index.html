@@ -1,58 +1,266 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Parquinho (ofuscado)</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parquinho</title>
   <style>
-    /* CSS mínimo inline - ainda visível */
-    *{box-sizing:border-box}
-    body{margin:0;font-family:"Comic Sans MS",cursive,sans-serif;height:100vh;background:linear-gradient(135deg,#fcd34d,#f9a8d4);-webkit-user-select:none;user-select:none}
-    /* você pode minificar mais */
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Comic Sans MS", cursive, sans-serif;
+      height: 100vh;
+      background: linear-gradient(135deg, #fcd34d, #f9a8d4);
+    }
+
+    /* Sidebar fixa */
+    .sidebar {
+      width: 240px;
+      background: linear-gradient(180deg,#6b46c1,#805ad5);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      padding-top: 20px;
+      transition: transform 0.3s ease;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      z-index: 2;
+    }
+    .sidebar.hidden {
+      transform: translateX(-240px);
+    }
+    .sidebar h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+    .menu-item {
+      padding: 15px;
+      cursor: pointer;
+      transition: background 0.3s;
+      text-align: center;
+    }
+    .menu-item:hover,
+    .menu-item.active {
+      background-color: rgba(255,255,255,0.2);
+    }
+
+    /* Conteúdo */
+    .content {
+      margin-left: 240px;
+      transition: margin-left 0.3s ease;
+    }
+    .content.collapsed {
+      margin-left: 0;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      background: rgba(255,255,255,0.8);
+      padding: 10px;
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(4px);
+      z-index: 1;
+    }
+    .toggle-btn {
+      background: #6b46c1;
+      color: #fff;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 18px;
+      margin-right: 10px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      margin: 20px;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 15px;
+    }
+
+    input, button {
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #6b46c1;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #553c9a;
+    }
+
+    .child-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      border-left: 8px solid;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      background: #f0f4f8;
+      font-size: 18px;
+    }
+    .child-card.green { border-color: #48bb78; background: #d1fae5; }
+    .child-card.red { border-color: #f56565; background: #fed7d7; }
+
+    .remove-btn {
+      background: #e53e3e;
+      color: #fff;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    /* Responsividade */
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-240px);
+      }
+      .sidebar.hidden {
+        transform: translateX(0);
+      }
+      .content {
+        margin-left: 0;
+      }
+      .content.collapsed {
+        margin-left: 240px;
+      }
+    }
   </style>
 </head>
 <body>
-  <!-- Conteúdo será injetado por JS -->
-  <div id="app">Carregando…</div>
+  <div class="sidebar" id="sidebar">
+    <h2>🎠 Parquinho</h2>
+    <div class="menu-item active" onclick="showPage('cadastro', this)">Cadastro</div>
+    <div class="menu-item" onclick="showPage('lista', this)">Lista</div>
+  </div>
+
+  <div class="content" id="content">
+    <div class="topbar">
+      <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+      <h3>Controle do Parquinho</h3>
+    </div>
+
+    <div id="cadastroPage" class="card">
+      <h3>🎉 Cadastrar Criança</h3>
+      <div class="input-group">
+        <label>Nome</label>
+        <input type="text" id="nome">
+      </div>
+      <div class="input-group">
+        <label>Tempo (min)</label>
+        <input type="number" id="tempo" min="1">
+      </div>
+      <button onclick="adicionarCrianca()">Adicionar</button>
+    </div>
+
+    <div id="listaPage" class="card" style="display:none;">
+      <h3>📋 Lista de Crianças</h3>
+      <div id="lista"></div>
+    </div>
+  </div>
+
+  <!-- Som -->
+  <audio id="alarm-sound">
+    <source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" type="audio/ogg">
+  </audio>
 
   <script>
-    // ---- proteção fraca: bloquear menu contexto / seleção ----
-    document.addEventListener('contextmenu', e => e.preventDefault());
-    document.addEventListener('keydown', e => {
-      // bloquear Ctrl+U (view-source), Ctrl+Shift+I (devtools) — apenas para desencorajar
-      if ((e.ctrlKey && e.key.toLowerCase() === 'u') ||
-          (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'i')) {
-        e.preventDefault();
+    let criancas = JSON.parse(localStorage.getItem('criancas') || '[]');
+
+    function salvar() {
+      localStorage.setItem('criancas', JSON.stringify(criancas));
+    }
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('hidden');
+      document.getElementById('content').classList.toggle('collapsed');
+    }
+
+    function showPage(page, el) {
+      document.getElementById('cadastroPage').style.display = page === 'cadastro' ? 'block' : 'none';
+      document.getElementById('listaPage').style.display = page === 'lista' ? 'block' : 'none';
+      document.querySelectorAll('.menu-item').forEach(i=>i.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function adicionarCrianca() {
+      const nome = document.getElementById('nome').value.trim();
+      const tempo = parseInt(document.getElementById('tempo').value);
+      if (!nome || isNaN(tempo) || tempo <= 0) {
+        alert("Preencha o nome e tempo corretamente");
+        return;
       }
-    });
-
-    // ---- função simples de decodificação base64 ----
-    function b64DecodeUnicode(str) {
-      // decodifica base64 para string UTF-8
-      return decodeURIComponent(Array.prototype.map.call(atob(str), function(c) {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-      }).join(''));
+      const horaSaida = new Date(Date.now() + tempo * 60000);
+      criancas.push({ nome, horaSaida, tocado:false });
+      salvar();
+      document.getElementById('nome').value = "";
+      document.getElementById('tempo').value = "";
+      showPage('lista', document.querySelectorAll('.menu-item')[1]);
+      atualizarLista();
     }
 
-    // ---- aqui coloque o HTML/CSS/JS codificado em base64 ----
-    // Por simplicidade neste exemplo somente o conteúdo principal está em base64.
-    const encoded = "PCEtLSBSZWluZm9ybWUgdG9sIGRlIGV4ZW1wbG8gY29uJTIwYSUyMHN1YSUyMDEgLi4uLS0+CiA8ZGl2IGNsYXNzPSJzaWRlYmFyIiBpZD0ic2lkZWJhciI+CiAgICA8aDI+8J+UIGFyYXVxdWU8L2gyPgogICAgPGRpdiBjbGFzcz0ibWVudS1pdGVtIGFjdGl2ZSI+Q2FkYXN0cm88L2Rpdj4KICAgIDxkaXYgY2xhc3M9Im1lbnUtaXRlbSI+TGlzdGE8L2Rpdj4KICA8L2Rpdj4KCiA8ZGl2IGNsYXNzPSJjb250ZW50Ij4KICAgIDxkaXYgaWQ9ImNhZGFzdHJvUGFnZSIgY2xhc3M9ImNhcmQiPgogICAgICA8aDM+8J+UOiBjYWRhc3RyYXIlMjBDcmlhbmThPC9oMz4KICAgICAgPGRpdiBjbGFzcz0iaW5wdXQtZ3JvdXAiPgogICAgICAgIDxsYWJlbD5Ob21lPC9sYWJlbD4KICAgICAgICA8aW5wdXQgdHlwZT0idGV4dCIgaWQ9Im5vbWUiPgogICAgICA8L2Rpdj4KICAgICAgPC9kaXY+CiAgICAgIDxkaXYgY2xhc3M9ImlucHV0LWNvbnRyb2wiPgogICAgICAgIDxsYWJlbD5UZW1wbyAobWluKTwvbGFiZWw+CiAgICAgICAgPGlucHV0IHR5cGU9Im51bWJlciIgaWQ9InRlbXBvIiBtaW49IjEiPgogICAgICA8L2Rpdj4KICAgICAgPGJ1dHRvbiBvbmNsaWNrPSJhZGRpY2lvbmFyQ3JpYW5jYSgpIj5BZGRpb25hcmwvYnV0dG9uPgogICAgPC9kaXY+CjwvdGl0bGU+";
-
-    try {
-      // decodifica e injeta
-      const html = b64DecodeUnicode(encoded);
-      document.getElementById('app').innerHTML = html;
-
-      // Você pode depois executar scripts que dependam do DOM injetado...
-      // Exemplo simples: encontrar botões e ligar eventos (depende do HTML que você injetou)
-      // setTimeout(() => { /* ligar eventos aqui */ }, 50);
-
-    } catch (err) {
-      document.getElementById('app').innerText = 'Falha ao carregar a aplicação.';
-      console.error(err);
+    function removerCrianca(index) {
+      criancas.splice(index,1);
+      salvar();
+      atualizarLista();
     }
 
-    // Observação: quem abrir o arquivo verá o script e a string codificada — ainda assim dá para decodificar.
+    function atualizarLista() {
+      const agora = new Date();
+      const listaDiv = document.getElementById('lista');
+      listaDiv.innerHTML = "";
+      criancas.sort((a,b)=> (new Date(a.horaSaida) - agora) - (new Date(b.horaSaida) - agora));
+      criancas.forEach((c,index)=>{
+        const restanteMs = new Date(c.horaSaida) - agora;
+        const restanteMin = Math.floor(restanteMs/60000);
+        const restanteSeg = Math.floor((restanteMs%60000)/1000);
+        const tempoRestante = restanteMs>0 ? `${restanteMin}m ${restanteSeg}s` : "Tempo esgotado!";
+        const classe = restanteMs>0 ? (restanteMin<5?"child-card red":"child-card green"):"child-card red";
+        const card = document.createElement('div');
+        card.className = classe;
+        card.innerHTML = `
+          <div>
+            <strong>${c.nome}</strong><br>
+            <small>${tempoRestante}</small>
+          </div>
+          <button class="remove-btn" onclick="removerCrianca(${index})">Remover</button>
+        `;
+        listaDiv.appendChild(card);
+
+        // toca som quando acaba e ainda não tocou
+        if(restanteMs<=0 && !c.tocado){
+          const alarm = document.getElementById('alarm-sound');
+          alarm.volume = 1.0; // som alto
+          alarm.play();
+          c.tocado=true;
+          salvar();
+        }
+      });
+    }
+
+    setInterval(atualizarLista,1000);
+    atualizarLista();
   </script>
 </body>
 </html>
